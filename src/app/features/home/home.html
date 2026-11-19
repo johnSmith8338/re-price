@@ -1,1 +1,82 @@
-<p>home works!</p>
+<main>
+    <header>
+        <h1>RePrice</h1>
+        <button type="button" [disabled]="creating()" (click)="createDocument()">
+            {{creating() ? 'Создание...' : 'Создать документ'}}
+        </button>
+    </header>
+
+    @if (store.error()) {
+        <p role="alert">Ошибка: {{store.error()}}</p>
+    }
+
+    <section>
+        <h2>Документы</h2>
+
+        <label>
+            Поиск
+            <input type="search"
+                placeholder="Название или дата..."
+                [value]="searchQuery()"
+                (input)="searchQuery.set($any($event.target).value)"
+            />
+        </label>
+
+        <div>
+            <button type="button"
+                [attr.aria-pressed]="activeFilter()==='all'"
+                (click)="activeFilter.set('all')"
+            >
+                Все ({{documentCounts().all}})
+            </button>
+            <button type="button"
+                [attr.aria-pressed]="activeFilter()==='draft'"
+                (click)="activeFilter.set('draft')"
+            >
+                Черновики ({{documentCounts().draft}})
+            </button>
+            <button type="button"
+                [attr.aria-pressed]="activeFilter()==='completed'"
+                (click)="activeFilter.set('completed')"
+            >
+                Завершенные ({{documentCounts().completed}})
+            </button>
+        </div>
+
+        <label>
+            Сортировка
+            <select
+                [value]="activeSort()"
+                (change)="activeSort.set($any($event.target).value)"
+            >
+                <option value="updated-desc">Сначала новые</option>
+                <option value="updated-asc">Сначала старые</option>
+                <option value="name-asc">По названию А-Я</option>
+                <option value="products-desc">По количеству товаров</option>
+            </select>
+        </label>
+
+        @if (store.documents().length===0) {
+            <p>Документов пока нет</p>
+        }@else if (filterDocuments().length===0) {
+            <p>Документы не найдены</p>
+        }@else {
+            @for (document of filterDocuments(); track document.id) {
+                <article>
+                    <button type="button" (click)="openDocument(document.id)">
+                        <h3>{{document.name}}</h3>
+                        <p>дата переоценки: {{formatDate(document.date)}}</p>
+                        <p>товаров: {{document.products.length}}</p>
+                        <p>статус: {{getStatusLabel(document.status)}}</p>
+                    </button>
+                    <button type="button"
+                        [disabled]="deletingId() !== null"
+                        (click)="deleteDocument(document)"
+                    >
+                        {{deletingId()===document.id ? 'Удаление...' : 'Удалить'}}
+                    </button>
+                </article>
+            }
+        }
+    </section>
+</main>

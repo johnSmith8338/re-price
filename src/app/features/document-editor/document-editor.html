@@ -1,1 +1,135 @@
-<p>document-editor works!</p>
+@if (loading()) {
+    <main class="editor-state">
+        <p>Загрузка документа...</p>
+    </main>
+}@else if (error() && !document()) {
+    <main class="editor-state">
+        <p role="alert">{{error()}}</p>
+        <button type="button" (click)="router.navigate(['/'])">На главную</button>
+    </main>
+}@else if (document(); as doc) {
+    <main class="editor">
+        <header class="editor-header">
+            <button type="button" (click)="router.navigate(['/'])">Назад</button>
+            <h1>{{doc.status==='draft'?'Редактирование':'Просмотр'}}</h1>
+            <span class="save-status">
+                @if (saving()) {
+                    Сохранение...
+                }@else {
+                    Сохранено
+                }
+            </span>
+        </header>
+
+        @if (error()) {
+            <p class="error-message" role="alert">{{error()}}</p>
+        }
+
+        <section class="document-details">
+            <label>
+                Название документа
+                <input type="text"
+                    [value]="doc.name"
+                    [disabled]="isReadOnly"
+                    (change)="updateName($event)"
+                />
+            </label>
+            <label>
+                Дата переоценки
+                <input type="date"
+                    [value]="doc.date"
+                    [disabled]="isReadOnly"
+                    (change)="updateDate($event)"
+                />
+            </label>
+        </section>
+
+        <section class="product-section">
+            <div class="section-heading">
+                <h2>Товары</h2>
+                <span>{{doc.products.length}}</span>
+            </div>
+
+            @if (doc.products.length===0) {
+                <p class="empty-state">В документе пока нет товаров</p>
+            }
+
+            @for (product of doc.products; track product.id) {
+                <article class="product-card">
+                    <div class="product-heading">
+                        <h3>Товар {{$index + 1}}</h3>
+                        @if (!isReadOnly) {
+                            <button type="button" (click)="removeProduct(product.id)">Удалить</button>
+                        }
+                    </div>
+
+                    <label>
+                        Название товара
+                        <input type="text"
+                            [value]="product.name"
+                            [disabled]="isReadOnly"
+                            placeholder="Введите название"
+                            (change)="updateProductName(product.id, $event)"
+                        />
+                    </label>
+                    <label>
+                        Артикул
+                        <input type="text"
+                            [value]="product.article"
+                            [disabled]="isReadOnly"
+                            placeholder="Необязательно"
+                            (change)="updateProductArticle(product.id, $event)"
+                        />
+                    </label>
+
+                    <div class="price-fields">
+                        <label>
+                            Старая цена, $
+                            <input type="number"
+                                min="0"
+                                step="0.01"
+                                [value]="formatPrice(product.oldPrice)"
+                                [disabled]="isReadOnly"
+                                placeholder="0.00"
+                                (change)="updateProductPrice(product.id, 'oldPrice', $event)"
+                            />
+                        </label>
+                        <label>
+                            Новая цена, $
+                            <input type="number"
+                                min="0"
+                                step="0.01"
+                                [value]="formatPrice(product.newPrice)"
+                                [disabled]="isReadOnly"
+                                placeholder="0.00"
+                                (change)="updateProductPrice(product.id, 'newPrice', $event)"
+                            />
+                        </label>
+                    </div>
+                </article>
+            }
+
+            @if (!isReadOnly) {
+                <button type="button" class="add-product-button"
+                    [disabled]="saving()"
+                    (click)="addProduct()"
+                >
+                    Добавить товар
+                </button>
+            }
+        </section>
+
+        <footer class="editor-footer">
+            @if (isReadOnly) {
+                <button type="button" (click)="reopenDocument()">Вернуть в черновик</button>
+            }@else {
+                <button type="button"
+                    [disabled]="saving() || doc.products.length===0"
+                    (click)="completeDocument()"
+                >
+                    Завершить переоценку
+                </button>
+            }
+        </footer>
+    </main>
+}

@@ -93,11 +93,11 @@ export class RepriceDocumentEngine {
     updateDetails(document: RepriceDocument, update: RepriceDocumentUpdate): RepriceDocument {
         this.assertDraft(document);
 
-        const name = update.name?.trim() ?? document.name;
-        const date = update.date ?? document.date;
+        const name = update.name !== undefined ? update.name?.trim() : document.name;
+        const date = update.date !== undefined ? update.date : document.date;
 
-        if (!name) throw new Error('Название документа не может быть пустым');
-        if (!this.isValidDate(date)) throw new Error('Некорректная дата');
+        if (update.name !== undefined && !name) throw new Error('Название документа не может быть пустым');
+        if (update.date !== undefined && !this.isValidDate(date)) throw new Error('Некорректная дата');
 
         return this.updateDocumentState(document, { name, date });
     }
@@ -178,7 +178,7 @@ export class RepriceDocumentEngine {
     private isValidDate(value: string): boolean {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
 
-        const date = new Date(`${value} T00:00:00.000Z`);
+        const date = new Date(`${value}T00:00:00.000Z`);
 
         return (!Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value);
     }
@@ -190,6 +190,13 @@ export class RepriceDocumentEngine {
         const day = String(date.getDate()).padStart(2, '0');
 
         return `${year}-${month}-${day}`;
+    }
+
+    private formatLocalDateTime(value: string): string {
+        return new Intl.DateTimeFormat('ru-Ru', {
+            dateStyle: 'short',
+            timeStyle: 'short'
+        }).format(new Date(value))
     }
 
     /** проверяет, что документ доступен для редактирования */

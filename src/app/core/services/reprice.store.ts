@@ -59,11 +59,18 @@ export class RepriceStore {
 
         const document = this.documentEngine.createDocument(options);
 
-        await this.storage.save(document);
+        try {
+            await this.storage.save(document);
 
-        this._documents.update(documents => this.sortDocuments([...documents, document]));
+            this._documents.update(documents => this.sortDocuments([...documents, document]));
 
-        return document;
+            this.error.set(null);
+
+            return document;
+        } catch (error) {
+            this.error.set(this.getErrorMessage(error));
+            throw error;
+        }
     }
 
     /** удаляет документ */
