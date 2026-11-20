@@ -178,4 +178,11 @@ export class RepriceStore {
     private getErrorMessage(error: unknown): string {
         return error instanceof Error ? error.message : 'Произошла неизвестная ошибка';
     }
+
+    async importDocument(document: RepriceDocument): Promise<RepriceDocument> {
+        await this.load();
+        await this.saveDocument(document);
+
+        return document;
+    }
 }

@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { RepriceStore } from '../../core/services/reprice.store';
 import { Router } from '@angular/router';
 import { RepriceDocument } from '../../core/models/reprice-document.model';
+import { RepriceExportService } from '../../core/services/reprice-export.service';
+import { RepriceImportService } from '../../core/services/reprice-import.service';
 
 type DocumentFilter = 'all' | 'draft' | 'completed';
 
@@ -17,9 +19,19 @@ type DocumentSort = 'updated-desc' | 'updated-asc' | 'name-asc' | 'products-desc
 export class Home {
   readonly store = inject(RepriceStore);
   private readonly router = inject(Router);
+  private readonly exportSvc = inject(RepriceExportService);
+  private readonly importSvc = inject(RepriceImportService);
 
   readonly creating = signal(false);
   readonly deletingId = signal<string | null>(null);
+
+  readonly importing = signal(false);
+  readonly importedDocument = signal<RepriceDocument | null>(null);
+  readonly importError = signal<string | null>(null);
+
+  readonly pendingImport = signal<RepriceDocument | null>(null);
+  readonly importConflict = signal<RepriceDocument | null>(null);
+  readonly importWarning = signal<RepriceDocument | null>(null);
 
   // поиск
   readonly searchQuery = signal('');
@@ -154,5 +166,115 @@ export class Home {
       `${day}.${month}`,
       `${day}${month}${year}`
     ].join(' ').toLocaleLowerCase('ru-RU');
+  }
+
+  exportDocument(document: RepriceDocument) {
+    try {
+      this.exportSvc.exportDocument(document);
+    } catch (error) {
+      console.error('Не удалось экспортировать документ', error);
+    }
+  }
+
+  async selectImportFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+
+    if (!file || this.importing()) return;
+
+    this.importing.set(true);
+    this.importError.set(null);
+    this.importWarning.set(null);
+    this.pendingImport.set(null);
+    this.importConflict.set(null);
+    this.importedDocument.set(null);
+
+    try {
+      const document = await this.importSvc.readFile(file);
+
+      const existing = this.store.getDocument(document.id);
+
+      if (!existing) {
+        await this.store.importDocument(document);
+        this.importedDocument.set(document);
+        return;
+      }
+
+      this.pendingImport.set(document);
+      this.importConflict.set(existing);
+    } catch (error) {
+      this.importError.set(error instanceof Error ? error.message : 'Не удалось импортировать документ');
+    } finally {
+      this.importing.set(false);
+      input.value = '';
+    }
+  }
+
+  async updateExistingDocument(): Promise<void> {
+    const imported = this.pendingImport();
+    const existing = this.importConflict();
+    if (!imported || !existing || this.importing()) return;
+
+    if (imported.revision < existing.revision) {
+      const confirmed = confirm(
+        `Импортируемая версия (${imported.revision}) старее текущей (${existing.revision}).\n\n` +
+        'Обновление может привести к потере более новых изменений. Продолжить?'
+      )
+
+      if (!confirmed) return;
+    }
+
+    await this.performImport(async () => {
+      await this.store.importDocument(imported);
+      this.importedDocument.set(imported);
+    })
+  }
+
+  async importAsCopy(): Promise<void> {
+    const imported = this.pendingImport();
+    if (!imported || this.importing()) return;
+
+    const now = new Date().toISOString();
+
+    const copy: RepriceDocument = {
+      ...structuredClone(imported),
+      id: crypto.randomUUID(),
+      revision: 1,
+      status: 'draft',
+      createdAt: now,
+      updatedAt: now,
+      completedAt: null,
+      products: imported.products.map(product => ({
+        ...product,
+        id: crypto.randomUUID()
+      }))
+    }
+
+    await this.performImport(async () => {
+      await this.store.importDocument(copy);
+      this.importedDocument.set(copy);
+    })
+  }
+
+  cancelImport() {
+    this.pendingImport.set(null);
+    this.importConflict.set(null);
+    this.importWarning.set(null);
+  }
+
+  private async performImport(operation: () => Promise<void>): Promise<void> {
+    this.importing.set(true);
+    this.importError.set(null);
+
+    try {
+      await operation();
+
+      this.pendingImport.set(null);
+      this.importConflict.set(null);
+    } catch (error) {
+      this.importError.set(error instanceof Error ? error.message : 'Не удалось сохранить импортированный документ');
+    } finally {
+      this.importing.set(false);
+    }
   }
 }

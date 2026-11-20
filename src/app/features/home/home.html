@@ -4,6 +4,61 @@
         <button type="button" [disabled]="creating()" (click)="createDocument()">
             {{creating() ? 'Создание...' : 'Создать документ'}}
         </button>
+        <label>
+            Импорт документа
+            <input type="file"
+                accept=".reprice,.json,application/json"
+                [disabled]="importing()"
+                (change)="selectImportFile($event)"
+            />
+        </label>
+
+        @if (importing()) {
+            <p>Проверка файла</p>
+        }
+        @if (importError()) {
+            <p role="alert">{{importError()}}</p>
+        }
+        @if (importedDocument(); as imported) {
+            <section>
+                <h3>Файл успешно проверен</h3>
+                <p>Название: {{imported.name}}</p>
+                <p>Дата: {{imported.date}}</p>
+                <p>Товаров: {{imported.products.length}}</p>
+                <p>Статус: {{getStatusLabel(imported.status)}}</p>
+                <p>ID: {{imported.id}}</p>
+            </section>
+        }
+
+        @if (pendingImport(); as imported) {
+            @if (importConflict(); as existing) {
+                <section>
+                    <h3>Документ уже существует</h3>
+                    <p>Импортируемый документ: {{imported.name}}</p>
+                    <p>Текущая ревизия: {{existing.revision}}</p>
+                    <p>Импортируемая ревизия: {{imported.revision}}</p>
+                    <p>Выберите, что делать с текущим документом:</p>
+                    <button type="button"
+                        [disabled]="importing()"
+                        (click)="updateExistingDocument()"
+                    >
+                        Обновить существующий
+                    </button>
+                    <button type="button"
+                        [disabled]="importing()"
+                        (click)="importAsCopy()"
+                    >
+                        Импортировать как копию
+                    </button>
+                    <button type="button"
+                        [disabled]="importing()"
+                        (click)="cancelImport()"
+                    >
+                        Отмена
+                    </button>
+                </section>
+            }
+        }
     </header>
 
     @if (store.error()) {
@@ -75,6 +130,7 @@
                     >
                         {{deletingId()===document.id ? 'Удаление...' : 'Удалить'}}
                     </button>
+                    <button type="button" (click)="exportDocument(document)">Экпорт</button>
                 </article>
             }
         }
