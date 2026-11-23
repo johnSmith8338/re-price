@@ -1,0 +1,22 @@
+@if (visible()) {
+    <div class="backdrop" (click)="closed.emit()">
+        <section class="bottom-sheet" role="dialog"
+            aria-modal="true"
+            [attr.aria-label]="title()"
+            (click)="$event.stopPropagation()"
+        >
+            <header class="bottom-sheet-header">
+                <h2>{{title()}}</h2>
+
+                <div>
+                    <button type="button" (click)="closed.emit()">Отмена</button>
+                    <button type="button" (click)="applied.emit()">Применить</button>
+                </div>
+            </header>
+
+            <div class="bottom-sheet-content">
+                <ng-content />
+            </div>
+        </section>
+    </div>
+}

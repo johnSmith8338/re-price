@@ -4,6 +4,7 @@ import { RepriceStore } from '../../core/services/reprice.store';
 import { RepriceDocument } from '../../core/models/reprice-document.model';
 import { RepriceProduct } from '../../core/models/reprice-product.model';
 import { RepriceCalculationEngine } from '../../core/engines/reprice-calculation.engine';
+import { RepriceNotificationService } from '../../core/services/reprice-notification.service';
 
 @Component({
   selector: 'app-document-editor',
@@ -17,6 +18,7 @@ export class DocumentEditor {
   readonly router = inject(Router);
   private readonly store = inject(RepriceStore);
   private readonly calculationEngine = inject(RepriceCalculationEngine);
+  private readonly notification = inject(RepriceNotificationService);
 
   readonly document = signal<RepriceDocument | null>(null);
 
@@ -152,11 +154,21 @@ export class DocumentEditor {
   }
 
   addProduct() {
-    this.enqueueOperation(document => this.store.addProduct(document.id))
+    this.enqueueOperation(
+      document => this.store.addProduct(document.id),
+      false,
+      'Товар добавлен',
+      'Не удалось добавить товар'
+    );
   }
 
   removeProduct(productId: string) {
-    this.enqueueOperation(document => this.store.removeProduct(document.id, productId));
+    this.enqueueOperation(
+      document => this.store.removeProduct(document.id, productId),
+      false,
+      'Товар удален',
+      'Не удалось удалить товар'
+    );
   }
 
   requestCompleteDocument(): void {
@@ -199,8 +211,10 @@ export class DocumentEditor {
         );
 
         this.document.set(completedDocument);
+        this.notification.success('Переоценка завершена');
       } catch (error) {
         this.error.set(this.getErrorMessage(error));
+        this.notification.error('Не удалось завершить переоценку');
       } finally {
         this.saving.set(false);
       }
@@ -212,7 +226,12 @@ export class DocumentEditor {
   }
 
   reopenDocument() {
-    this.enqueueOperation(document => this.store.reopenDocument(document.id), true)
+    this.enqueueOperation(
+      document => this.store.reopenDocument(document.id),
+      true,
+      'Документ возвращен в черновик',
+      'Не удалось вернуть документ в черновик'
+    );
   }
 
   formatPrice(price: number | null): string {
@@ -227,7 +246,12 @@ export class DocumentEditor {
     ))
   }
 
-  private enqueueOperation(operation: (document: RepriceDocument) => Promise<RepriceDocument>, allowCompleted = false) {
+  private enqueueOperation(
+    operation: (document: RepriceDocument) => Promise<RepriceDocument>,
+    allowCompleted = false,
+    successMessage?: string,
+    failureMessage?: string
+  ) {
     this.operationQueue = this.operationQueue.then(async () => {
       const currentDocument = this.document();
       if (!currentDocument) return;
@@ -242,8 +266,12 @@ export class DocumentEditor {
         this.document.set(updatedDocument);
 
         if (this.validationAttempted) this.fieldErrors.set(this.validateDocument(updatedDocument));
+        if (successMessage) this.notification.success(successMessage);
+
       } catch (error) {
         this.error.set(this.getErrorMessage(error));
+        if (failureMessage) this.notification.error(failureMessage);
+
       } finally {
         this.saving.set(false);
       }
