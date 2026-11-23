@@ -96,8 +96,8 @@ export class RepriceDocumentEngine {
         const name = update.name !== undefined ? update.name?.trim() : document.name;
         const date = update.date !== undefined ? update.date : document.date;
 
-        if (update.name !== undefined && !name) throw new Error('Название документа не может быть пустым');
-        if (update.date !== undefined && !this.isValidDate(date)) throw new Error('Некорректная дата');
+        // if (update.name !== undefined && !name) throw new Error('Название документа не может быть пустым');
+        // if (update.date !== undefined && !this.isValidDate(date)) throw new Error('Некорректная дата');
 
         return this.updateDocumentState(document, { name, date });
     }
@@ -193,7 +193,7 @@ export class RepriceDocumentEngine {
     }
 
     private formatLocalDateTime(value: string): string {
-        return new Intl.DateTimeFormat('ru-Ru', {
+        return new Intl.DateTimeFormat('ru-RU', {
             dateStyle: 'short',
             timeStyle: 'short'
         }).format(new Date(value))

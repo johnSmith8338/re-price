@@ -31,16 +31,24 @@
                 <input type="text"
                     [value]="doc.name"
                     [disabled]="isReadOnly"
+                    [class.invalid]="!!fieldError('name')"
                     (change)="updateName($event)"
                 />
+                @if (fieldError('name'); as message) {
+                    <span class="field-error">{{message}}</span>
+                }
             </label>
             <label>
                 Дата переоценки
                 <input type="date"
                     [value]="doc.date"
                     [disabled]="isReadOnly"
+                    [class.invalid]="!!fieldError('date')"
                     (change)="updateDate($event)"
                 />
+                @if (fieldError('date'); as message) {
+                    <span class="field-error">{{message}}</span>
+                }
             </label>
         </section>
 
@@ -59,7 +67,12 @@
                     <div class="product-heading">
                         <h3>Товар {{$index + 1}}</h3>
                         @if (!isReadOnly) {
-                            <button type="button" (click)="removeProduct(product.id)">Удалить</button>
+                            <button type="button"
+                            [disabled]="saving()"
+                                (click)="requestDeleteProduct(product.id)"
+                            >
+                                Удалить
+                            </button>
                         }
                     </div>
 
@@ -68,9 +81,13 @@
                         <input type="text"
                             [value]="product.name"
                             [disabled]="isReadOnly"
+                            [class.invalid]="!!fieldError(product.id + '.name')"
                             placeholder="Введите название"
                             (change)="updateProductName(product.id, $event)"
                         />
+                        @if (fieldError(product.id + '.name'); as message) {
+                            <span class="field-error">{{message}}</span>
+                        }
                     </label>
                     <label>
                         Артикул
@@ -90,9 +107,13 @@
                                 step="0.01"
                                 [value]="formatPrice(product.oldPrice)"
                                 [disabled]="isReadOnly"
+                                [class.invalid]="!!fieldError(product.id + '.oldPrice')"
                                 placeholder="0.00"
                                 (change)="updateProductPrice(product.id, 'oldPrice', $event)"
                             />
+                            @if (fieldError(product.id + '.oldPrice'); as message) {
+                                <span class="field-error">{{message}}</span>
+                            }
                         </label>
                         <label>
                             Новая цена, $
@@ -101,9 +122,13 @@
                                 step="0.01"
                                 [value]="formatPrice(product.newPrice)"
                                 [disabled]="isReadOnly"
+                                [class.invalid]="!!fieldError(product.id + '.newPrice')"
                                 placeholder="0.00"
                                 (change)="updateProductPrice(product.id, 'newPrice', $event)"
                             />
+                            @if (fieldError(product.id + '.newPrice'); as message) {
+                                <span class="field-error">{{message}}</span>
+                            }
                         </label>
                     </div>
                 </article>
@@ -119,17 +144,152 @@
             }
         </section>
 
-        <footer class="editor-footer">
-            @if (isReadOnly) {
-                <button type="button" (click)="reopenDocument()">Вернуть в черновик</button>
-            }@else {
-                <button type="button"
-                    [disabled]="saving() || doc.products.length===0"
-                    (click)="completeDocument()"
-                >
-                    Завершить переоценку
-                </button>
+        @if (summary(); as stats) {
+            <footer class="summary-panel">
+                <div class="summary-main">
+                    <div class="summary-products">
+                        <span class="summary-value">{{document()?.products?.length ?? 0}}</span>
+                        <span class="summary-label">Товаров</span>
+                        @if (stats.productsCount!==document()?.products?.length) {
+                            <span class="summary-hint">В расчете: {{stats.productsCount}}</span>
+                        }
+                    </div>
+
+                    <div class="summary-difference">
+                        <span class="summary-label">Изменение стоимости</span>
+                        <span class="summary-value">{{formatMoneyWithSign(stats.differenceTotal)}}</span>
+                    </div>
+
+                    <div class="summary-totals">
+                        <div>
+                            <span class="summary-label">Старая стоимость</span>
+                            <span>{{formatMoney(stats.oldPriceTotal)}}</span>
+                        </div>
+                        <div>
+                            <span class="summary-label">Новая стоимость</span>
+                            <span>{{formatMoney(stats.newPriceTotal)}}</span>
+                        </div>
+                    </div>
+
+                    <button type="button" class="summary-toggle"
+                        [attr.aria-expanded]="summaryExpanded()"
+                        aria-controls="summary-details"
+                        (click)="toggleSummary()"
+                    >
+                        {{summaryExpanded() ? 'скрыть подробности' : 'подробнее'}}
+                    </button>
+                </div>
+
+                @if (summaryExpanded()) {
+                    <div class="summary-details" id="summary-details">
+                        <div class="summary-detail-item">
+                            <span>Товаров в расчете</span>
+                            <span>{{stats.productsCount}}</span>
+                        </div>
+                        <div class="summary-detail-item">
+                            <span>Товаров с повышением цены</span>
+                            <span>{{stats.increasedCount}}</span>
+                        </div>
+                        <div class="summary-detail-item">
+                            <span>Товаров со снижением цены</span>
+                            <span>{{stats.decreasedCount}}</span>
+                        </div>
+                        <div class="summary-detail-item">
+                            <span>Товаров без изменений</span>
+                            <span>{{stats.unchangedCount}}</span>
+                        </div>
+                        <div class="summary-detail-item">
+                            <span>Общее изменение</span>
+                            <span>{{formatPercentage(stats.percentageTotal)}}%</span>
+                        </div>
+
+                        @if (stats.productsCount < (document()?.products?.length ?? 0)) {
+                            <p class="summary-warning">
+                                Некоторые товары не учитываются в расчетах. Проверьте заполнение названий и цен.
+                            </p>
+                        }
+                    </div>
+                }
+
+                @if (isReadOnly) {
+                    <button type="button" (click)="reopenDocument()">Вернуть в черновик</button>
+                }@else {
+                    <button type="button"
+                        [disabled]="saving()"
+                        (click)="requestCompleteDocument()"
+                    >
+                        Завершить переоценку
+                    </button>
+                }
+            </footer>
+
+            @if (completionDialogOpen()) {
+                <div class="backdrop">
+                    <section class="dialog" role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="completion-dialog-title"
+                        aria-describedby="completion-dialog-description"
+                    >
+                        <h2 id="completion-dialog-title">Завершить переоценку?</h2>
+                        <p id="completion-dialog-description">После завершения документ перейдет в режим просмотра. Вы сможете вернуться к редактированию позднее.</p>
+
+                        <div class="dialog-actions">
+                            <button type="button" (click)="cancelCompletion()">Отмена</button>
+                            <button type="button" 
+                                [disabled]="saving()"
+                                (click)="confirmCompletion()"
+                            >
+                                Завершить
+                            </button>
+                        </div>
+                    </section>
+                </div>
             }
-        </footer>
+
+            @if (deleteDialogOpen()) {
+                <div class="backdrop">
+                    <section class="dialog" role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="delete-dialog-title"
+                        aria-describedby="delete-dialog-description"
+                    >
+                        <h2 id="delete-dialog-title">Удалить товар?</h2>
+                        <p id="delete-dialog-description">Товар будет удален из документа. Это действие нельзя отменить.</p>
+
+                        <div class="dialog-actions">
+                            <button type="button" (click)="cancelDeleteProduct()">Отмена</button>
+                            <button type="button" 
+                                [disabled]="saving()"
+                                (click)="confirmDeleteProduct()"
+                            >
+                                Удалить
+                            </button>
+                        </div>
+                    </section>
+                </div>
+            }
+
+            @if (validationDialogOpen()) {
+                <div class="backdrop">
+                    <section class="dialog" role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="validation-dialog-title"
+                        aria-describedby="validation-dialog-description"
+                    >
+                        <h2 id="validation-dialog-title">Не удалось завершить переоценку</h2>
+
+                        @if (fieldError('products'); as message) {
+                            <p class="field-error" role="alert">{{message}}</p>
+                        }@else {
+                            <p id="validation-dialog-description">Проверьте заполнение обязательных полей.</p>
+                        }
+
+                        <div class="dialog-actions">
+                            <button type="button" (click)="closeValidationDialog()">Закрыть</button>
+                        </div>
+                    </section>
+                </div>
+            }
+        }
     </main>
 }

@@ -4,6 +4,9 @@ import { Router } from '@angular/router';
 import { RepriceDocument } from '../../core/models/reprice-document.model';
 import { RepriceExportService } from '../../core/services/reprice-export.service';
 import { RepriceImportService } from '../../core/services/reprice-import.service';
+import { RepriceReportService } from '../../core/services/reprice-report.service';
+import { RepriceSvgReportService } from '../../core/services/reprice-svg-report.service';
+import { RepricePngExportService } from '../../core/services/reprice-png-export.service';
 
 type DocumentFilter = 'all' | 'draft' | 'completed';
 
@@ -21,6 +24,9 @@ export class Home {
   private readonly router = inject(Router);
   private readonly exportSvc = inject(RepriceExportService);
   private readonly importSvc = inject(RepriceImportService);
+  private readonly reportSvc = inject(RepriceReportService);
+  private readonly svgReportSvc = inject(RepriceSvgReportService);
+  private readonly pngExportSvc = inject(RepricePngExportService);
 
   readonly creating = signal(false);
   readonly deletingId = signal<string | null>(null);
@@ -32,6 +38,9 @@ export class Home {
   readonly pendingImport = signal<RepriceDocument | null>(null);
   readonly importConflict = signal<RepriceDocument | null>(null);
   readonly importWarning = signal<RepriceDocument | null>(null);
+
+  readonly deleteDialogOpen = signal(false);
+  readonly documentToDelete = signal<RepriceDocument | null>(null);
 
   // поиск
   readonly searchQuery = signal('');
@@ -56,7 +65,7 @@ export class Home {
   // отфильтрованный и отсортированный список
   readonly filterDocuments = computed(() => {
     const documents = this.store.documents();
-    const query = this.searchQuery().trim().toLocaleLowerCase('ru-Ru');
+    const query = this.searchQuery().trim().toLocaleLowerCase('ru-RU');
     const filter = this.activeFilter();
     const sort = this.activeSort();
 
@@ -66,7 +75,7 @@ export class Home {
 
       // поиск по названию и дате
       if (query) {
-        const name = document.name.toLocaleLowerCase('ru-Ru');
+        const name = document.name.toLocaleLowerCase('ru-RU');
         const date = this.getSearchableDate(document.date);
 
         if (!name.includes(query) && !date.includes(query)) return false;
@@ -81,7 +90,7 @@ export class Home {
         case 'updated-asc':
           return a.updatedAt.localeCompare(b.updatedAt);
         case 'name-asc':
-          return a.name.localeCompare(b.name, 'ru-Ru');
+          return a.name.localeCompare(b.name, 'ru-RU');
         case 'products-desc':
           return b.products.length - a.products.length;
         case 'updated-desc':
@@ -110,15 +119,19 @@ export class Home {
     void this.router.navigate(['/documents', documentId]);
   }
 
-  async deleteDocument(document: RepriceDocument): Promise<void> {
+  requestDeleteDocument(document: RepriceDocument): void {
     if (this.deletingId()) return;
 
-    const confirmed = confirm(
-      `Удалить документ «${document.name}»?\nЭто действие нельзя отменить.`
-    )
+    this.documentToDelete.set(document);
+    this.deleteDialogOpen.set(true);
+  }
 
-    if (!confirmed) return;
+  async confirmDeleteDocument(): Promise<void> {
+    const document = this.documentToDelete();
 
+    if (!document || this.deletingId()) return;
+
+    this.deleteDialogOpen.set(false);
     this.deletingId.set(document.id);
 
     try {
@@ -127,7 +140,13 @@ export class Home {
       console.error('Не удалось удалить документ', error);
     } finally {
       this.deletingId.set(null);
+      this.documentToDelete.set(null);
     }
+  }
+
+  cancelDeleteDocument(): void {
+    this.deleteDialogOpen.set(false);
+    this.documentToDelete.set(null);
   }
 
   formatDate(value: string): string {
@@ -275,6 +294,20 @@ export class Home {
       this.importError.set(error instanceof Error ? error.message : 'Не удалось сохранить импортированный документ');
     } finally {
       this.importing.set(false);
+    }
+  }
+
+  async testPngReport(document: RepriceDocument): Promise<void> {
+    try {
+      const report = this.reportSvc.createReport(document);
+      const svg = this.svgReportSvc.createSvg(report);
+
+      await this.pngExportSvc.exportSvg(
+        svg,
+        `reprice_${document.date}.png`
+      )
+    } catch (error) {
+      console.error('png report export error: ', error);
     }
   }
 }

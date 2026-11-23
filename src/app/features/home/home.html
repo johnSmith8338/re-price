@@ -126,13 +126,33 @@
                     </button>
                     <button type="button"
                         [disabled]="deletingId() !== null"
-                        (click)="deleteDocument(document)"
+                        (click)="requestDeleteDocument(document)"
                     >
                         {{deletingId()===document.id ? 'Удаление...' : 'Удалить'}}
                     </button>
                     <button type="button" (click)="exportDocument(document)">Экпорт</button>
+                    <button type="button" (click)="testPngReport(document)">testReport</button>
                 </article>
             }
         }
     </section>
+
+    @if (deleteDialogOpen()) {
+        <div class="backdrop">
+            <section class="dialog" role="dialog"
+                aria-modal="true"
+                aria-labelledby="delete-document-dialog-title"
+                aria-describedby="delete-document-dialog-description"
+            >
+                <h2 id="delete-document-dialog-title">Удалить документ?</h2>
+                @if (documentToDelete(); as document) {
+                    <p id="delete-document-dialog-description">Документ «{{document.name}}» будет удален вмести со всеми товарами. Это действие нельзя отменить.</p>
+                }
+                <div class="dialog-actions">
+                    <button type="button" (click)="cancelDeleteDocument()">Отмена</button>
+                    <button type="button" (click)="confirmDeleteDocument()">Удалить</button>
+                </div>
+            </section>
+        </div>
+    }
 </main>
