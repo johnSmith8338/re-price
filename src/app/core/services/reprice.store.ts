@@ -185,4 +185,31 @@ export class RepriceStore {
 
         return document;
     }
+
+    async importDocuments(documents: RepriceDocument[], replaceExisting: boolean): Promise<void> {
+        await this.load();
+
+        const currentDocuments = this.documents();
+        const currentIds = new Set(currentDocuments.map(document => document.id));
+        const documentsToImport = replaceExisting
+            ? documents
+            : documents.filter(document => !currentIds.has(document.id))
+
+        if (documentsToImport.length === 0) return;
+
+        await this.storage.saveMany(documentsToImport);
+
+        const importedIds = new Set(documentsToImport.map(document => document.id));
+
+        this._documents.update(current => {
+            const remaining = current.filter(
+                document => !importedIds.has(document.id)
+            )
+
+            return this.sortDocuments([
+                ...remaining,
+                ...documentsToImport
+            ])
+        })
+    }
 }

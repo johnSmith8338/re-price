@@ -1,1 +1,146 @@
-<p>settings works!</p>
+<section class="settings-page">
+    <header class="settings-header">
+        <h1>Настройки</h1>
+        <p>Персональные параметры приложения</p>
+    </header>
+
+    <section class="settings-section">
+        <h2>Внешний вид</h2>
+
+        <div class="settings-item">
+            <div>
+                <h3>Тема оформления</h3>
+                <p>Выберите внешний вид приложения</p>
+            </div>
+            <select [value]="settings().theme" (change)="onThemeChange($event)">
+                <option value="system">Системная</option>
+                <option value="light">Светлая</option>
+                <option value="dark">Тёмная</option>
+            </select>
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <h2>Форматирование</h2>
+
+        <div class="settings-item">
+            <div>
+                <h3>Формат даты</h3>
+                <p>Формат отображения дат в приложении</p>
+            </div>
+            <select [value]="settings().dateFormat" (change)="onDateFormatChange($event)">
+                <option value="dd.MM.yyyy">24.11.2026</option>
+                <option value="yyyy-MM-dd">2026-11-24</option>
+            </select>
+        </div>
+    </section>
+
+    <section class="settings-section">
+        <h2>Подтверждения</h2>
+
+        <label class="settings-item">
+            <div>
+                <h3>Подтверждать удаление</h3>
+                <p>Показывать запрос подтверждения перед удалением документов и товаров</p>
+            </div>
+            <input type="checkbox"
+                [checked]="settings().confirmBeforeDelete"
+                (change)="onConfirmBeforeDeleteChange($event)"
+            />
+        </label>
+    </section>
+
+    <section class="settings-section">
+        <h2>Резервное копирование</h2>
+
+        <div class="settings-item">
+            <div>
+                <h3>Создать резервную копию</h3>
+                <p>Сохранить все документы в один файл на устройстве</p>
+            </div>
+            <button type="button"
+                [disabled]="backupInProgress()"
+                (click)="createBackup()"
+            >
+                {{backupInProgress()?'Создание...':'Создать копию'}}
+            </button>
+        </div>
+
+        <div class="settings-item">
+            <div>
+                <h3>Восстановить резервную копию</h3>
+                <p>Выбрать ранее сохранённый файл и проверить его содержимое</p>
+            </div>
+            <label >
+                <span>{{backupReadInProgress()?'Чтение...':'Выбрать файл'}}</span>
+                <input type="file"
+                    accept=".reprice-backup,.json,application/json"
+                    [disabled]="backupReadInProgress()"
+                    (change)="onBackupFileSelected($event)"
+                />
+            </label>
+        </div>
+
+        @if (backupPreview(); as backup) {
+            <div class="backup-preview">
+                <h3>Резервная копия проверена</h3>
+                <p>Дата создания: {{backup.createdAt}}</p>
+
+                @if (backupPreviewSummary(); as summary) {
+                    <p>Всего документов: {{summary.total}}</p>
+                    <p>Черновиков: {{summary.drafts}}</p>
+                    <p>Завершённых: {{summary.completed}}</p>
+                    <p>Всего товаров: {{summary.products}}</p>
+                }
+
+                <button type="button" (click)="clearBackupPreview()">Очистить</button>
+            </div>
+        }
+
+        @if (restorePlan();as plan) {
+            <div>
+                <h4>Результат восстановления</h4>
+                <p>Документов в резервной копии: {{plan.totalCount}}</p>
+                <p>Новых документов: {{plan.newCount}}</p>
+                <p>Совпадений по id: {{plan.conflictCount}}</p>
+                <p>Будет пропущено: {{plan.skippedCount}}</p>
+                <p>Будет заменено: {{plan.replacedCount}}</p>
+                <p>Будет создано копий: {{plan.copiedCount}}</p>
+            </div>
+        }
+
+        <div class="settings-item">
+            <div>
+                <h3>Способ восстановления</h3>
+                <p>Выбирете, как поступить с существующими документами</p>
+            </div>
+            <select 
+                [value]="restoreStrategy()"
+                (change)="onRestoreStrategyChange($event)"
+            >
+                <option value="skip-existing">Пропустить существующие</option>
+                <option value="replace-existing">Заменить существующие</option>
+                <option value="copy-all">Импортировать как копии</option>
+            </select>
+        </div>
+
+        <button type="button"
+            [disabled]="restoreInProgress()"
+            (click)="restoreBackup()"
+        >
+            {{restoreInProgress() ? 'Восстановление...' : 'Восстановить'}}
+        </button>
+    </section>
+
+    <section class="settings-section">
+        <h2>Сброс настроек</h2>
+
+        <div class="settings-item">
+            <div>
+                <h3>Восстановить настройки по умолчанию</h3>
+                <p>Тема, формат даты и подтверждения удаления</p>
+            </div>
+            <button type="button" (click)="resetSettings()">Сбросить</button>
+        </div>
+    </section>
+</section>

@@ -136,4 +136,34 @@ export class RepriceStorageService {
             }
         })
     }
+
+    async saveMany(documents: RepriceDocument[]): Promise<void> {
+        if (documents.length === 0) return;
+
+        const db = await this.getDatabase();
+
+        return new Promise<void>((resolve, reject) => {
+            const transaction = db.transaction('documents', 'readwrite');
+            const objectStore = transaction.objectStore('documents');
+
+            transaction.oncomplete = () => {
+                resolve();
+            }
+
+            transaction.onerror = () => {
+                reject(transaction.error ?? new Error('Не удалось сохранить документы'));
+            }
+
+            transaction.onabort = () => {
+                reject(transaction.error ?? new Error('Операция сохранения была отменена'));
+            }
+
+            try {
+                for (const document of documents) objectStore.put(document);
+            } catch (error) {
+                transaction.abort();
+                reject(error);
+            }
+        })
+    }
 }

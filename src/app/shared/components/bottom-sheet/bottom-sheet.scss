@@ -1,0 +1,24 @@
+:host {
+    position: fixed;
+    inset-inline: 0;
+    inset-block-end: 0;
+    background-color: white;
+}
+
+.bottom-sheet-drag-area {
+    touch-action: none;
+    user-select: none;
+    cursor: grab;
+
+    &:active {
+        cursor: grabbing;
+    }
+}
+
+.bottom-sheet-content {
+    min-height: 0;
+    overflow-y: auto;
+
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+}

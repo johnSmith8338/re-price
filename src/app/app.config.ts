@@ -3,6 +3,7 @@ import { provideRouter } from '@angular/router';
 
 import { routes } from './app.routes';
 import { RepriceStore } from './core/services/reprice.store';
+import { RepriceThemeService } from './core/services/reprice-theme.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -10,6 +11,7 @@ export const appConfig: ApplicationConfig = {
     provideRouter(routes),
     provideAppInitializer(() => {
       const store = inject(RepriceStore);
+      inject(RepriceThemeService);
       return store.load().catch(() => undefined);
     })
   ]

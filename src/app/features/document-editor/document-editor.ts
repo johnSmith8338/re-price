@@ -5,6 +5,7 @@ import { RepriceDocument } from '../../core/models/reprice-document.model';
 import { RepriceProduct } from '../../core/models/reprice-product.model';
 import { RepriceCalculationEngine } from '../../core/engines/reprice-calculation.engine';
 import { RepriceNotificationService } from '../../core/services/reprice-notification.service';
+import { RepriceSettingsService } from '../../core/services/reprice-settings.service';
 
 @Component({
   selector: 'app-document-editor',
@@ -19,6 +20,7 @@ export class DocumentEditor {
   private readonly store = inject(RepriceStore);
   private readonly calculationEngine = inject(RepriceCalculationEngine);
   private readonly notification = inject(RepriceNotificationService);
+  private readonly settingsSvc = inject(RepriceSettingsService);
 
   readonly document = signal<RepriceDocument | null>(null);
 
@@ -382,6 +384,10 @@ export class DocumentEditor {
 
   requestDeleteProduct(productId: string): void {
     if (this.isReadOnly || this.saving()) return;
+    if (!this.settingsSvc.confirmBeforeDelete()) {
+      void this.removeProduct(productId);
+      return;
+    }
 
     this.productToDelete.set(productId);
     this.deleteDialogOpen.set(true);

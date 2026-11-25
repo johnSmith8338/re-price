@@ -1,18 +1,30 @@
 @if (visible()) {
     <div class="backdrop" (click)="closed.emit()">
-        <section class="bottom-sheet" role="dialog"
+        <section #dialog class="bottom-sheet" role="dialog"
             aria-modal="true"
+            tabindex="-1"
             [attr.aria-label]="title()"
+            [style.transform]="`translateY(${dragOffset()}px)`"
             (click)="$event.stopPropagation()"
+            (keydown)="onDialogKeydown($event)"
         >
-            <header class="bottom-sheet-header">
-                <h2>{{title()}}</h2>
+            <div class="bottom-sheet-drag-area"
+                (pointerdown)="onDragStart($event)"
+                (pointermove)="onDragMove($event)"
+                (pointerup)="onDragEnd()"
+                (pointercancel)="onDragCancel()"
+            >
+                <div class="bottom-sheet-handle"></div>
 
-                <div>
-                    <button type="button" (click)="closed.emit()">Отмена</button>
-                    <button type="button" (click)="applied.emit()">Применить</button>
-                </div>
-            </header>
+                <header class="bottom-sheet-header">
+                    <h2>{{title()}}</h2>
+    
+                    <div class="bottom-sheet-header-actions">
+                        <button type="button" (click)="closed.emit()">Отмена</button>
+                        <button type="button" (click)="applied.emit()">Применить</button>
+                    </div>
+                </header>
+            </div>
 
             <div class="bottom-sheet-content">
                 <ng-content />

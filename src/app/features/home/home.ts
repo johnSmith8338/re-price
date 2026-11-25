@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RepriceStore } from '../../core/services/reprice.store';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { RepriceDocument } from '../../core/models/reprice-document.model';
 import { RepriceExportService } from '../../core/services/reprice-export.service';
 import { RepriceImportService } from '../../core/services/reprice-import.service';
@@ -9,6 +9,8 @@ import { RepriceSvgReportService } from '../../core/services/reprice-svg-report.
 import { RepricePngExportService } from '../../core/services/reprice-png-export.service';
 import { RepriceNotificationService } from '../../core/services/reprice-notification.service';
 import { BottomSheet } from '../../shared/components/bottom-sheet/bottom-sheet';
+import { RepriceSettingsService } from '../../core/services/reprice-settings.service';
+import { RepriceDateFormatService } from '../../core/services/reprice-date-format.service';
 
 type DocumentFilter = 'all' | 'draft' | 'completed';
 
@@ -16,7 +18,10 @@ type DocumentSort = 'updated-desc' | 'updated-asc' | 'name-asc' | 'products-desc
 
 @Component({
   selector: 'app-home',
-  imports: [BottomSheet],
+  imports: [
+    BottomSheet,
+    RouterLink,
+  ],
   templateUrl: './home.html',
   styleUrl: './home.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,6 +35,8 @@ export class Home {
   private readonly svgReportSvc = inject(RepriceSvgReportService);
   private readonly pngExportSvc = inject(RepricePngExportService);
   private readonly notification = inject(RepriceNotificationService);
+  private readonly settingsSvc = inject(RepriceSettingsService);
+  private readonly dateFormatSvc = inject(RepriceDateFormatService);
 
   readonly creating = signal(false);
   readonly deletingId = signal<string | null>(null);
@@ -161,6 +168,12 @@ export class Home {
     if (this.deletingId()) return;
 
     this.documentToDelete.set(document);
+
+    if (!this.settingsSvc.confirmBeforeDelete()) {
+      void this.confirmDeleteDocument();
+      return;
+    }
+
     this.deleteDialogOpen.set(true);
   }
 
@@ -190,22 +203,11 @@ export class Home {
   }
 
   formatDate(value: string): string {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      return 'Некорректная дата';
-    }
+    const formatted = this.dateFormatSvc.format(value);
 
-    const [year, month, day] = value.split('-').map(Number);
-    const date = new Date(year, month - 1, day);
-
-    if (
-      date.getFullYear() !== year ||
-      date.getMonth() !== month - 1 ||
-      date.getDate() !== day
-    ) {
-      return 'Некорректная дата';
-    }
-
-    return new Intl.DateTimeFormat('ru-RU').format(date);
+    return formatted === '—'
+      ? 'Некорректная дата'
+      : formatted;
   }
 
   getStatusLabel(status: RepriceDocument['status']): string {
@@ -321,6 +323,7 @@ export class Home {
       ...structuredClone(imported),
       id: crypto.randomUUID(),
       revision: 1,
+      name: `${imported.name} (копия)`,
       status: 'draft',
       createdAt: now,
       updatedAt: now,
