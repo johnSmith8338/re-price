@@ -4,10 +4,11 @@ import { RepriceDateFormat, RepriceTheme } from '../../core/models/reprice-setti
 import { RepriceBackupService } from '../../core/services/reprice-backup.service';
 import { RepriceNotificationService } from '../../core/services/reprice-notification.service';
 import { RepriceBackupFile, RepriceRestoreStategy } from '../../core/models/reprice-backup.model';
+import { BottomSheet } from '../../shared/components/bottom-sheet/bottom-sheet';
 
 @Component({
   selector: 'app-settings',
-  imports: [],
+  imports: [BottomSheet],
   templateUrl: './settings.html',
   styleUrl: './settings.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -24,6 +25,9 @@ export class Settings {
   readonly backupReadInProgress = signal(false);
   readonly restoreStrategy = signal<RepriceRestoreStategy>('skip-existing');
   readonly restoreInProgress = signal(false);
+
+  readonly backupPreviewOpen = signal(false);
+  readonly restoreConfirmationOpen = signal(false);
 
   readonly backupPreviewSummary = computed(() => {
     const backup = this.backupPreview();
@@ -68,6 +72,8 @@ export class Settings {
       const backup = await this.backupSvc.readBackup(file);
 
       this.backupPreview.set(backup);
+      this, this.restoreStrategy.set('skip-existing');
+      this.backupPreviewOpen.set(true);
 
       this.notification.success('Резервная копия успешно проверена');
     } catch (error) {
@@ -86,6 +92,9 @@ export class Settings {
 
   clearBackupPreview(): void {
     this.backupPreview.set(null);
+    this.backupPreviewOpen.set(false);
+    this.restoreConfirmationOpen.set(false);
+    this.restoreStrategy.set('skip-existing');
   }
 
   onThemeChange(event: Event) {
@@ -156,30 +165,13 @@ export class Settings {
 
   async restoreBackup(): Promise<void> {
     const backup = this.backupPreview();
+    if (!backup || this.restoreInProgress()) return;
 
-    if (!backup || this.restoreInProgress()) {
-      return;
-    }
-
+    const strategy = this.restoreStrategy();
     const plan = this.restorePlan();
 
     if (!plan || plan.documents.length === 0) {
-      this.notification.warning(
-        'Нет документов для восстановления'
-      );
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Будет обработано документов: ${plan.totalCount}.\n\n` +
-      `Новых: ${plan.newCount}.\n` +
-      `Заменено: ${plan.replacedCount}.\n` +
-      `Пропущено: ${plan.skippedCount}.\n` +
-      `Создано копий: ${plan.copiedCount}.\n\n` +
-      `Продолжить восстановление?`
-    );
-
-    if (!confirmed) {
+      this.notification.warning('Нет документов для восстановления');
       return;
     }
 
@@ -188,7 +180,7 @@ export class Settings {
     try {
       const result = await this.backupSvc.restoreBackup(
         backup,
-        this.restoreStrategy()
+        strategy
       );
 
       this.notification.success(
@@ -200,16 +192,39 @@ export class Settings {
       );
 
       this.clearBackupPreview();
+
     } catch (error) {
       console.error('Ошибка восстановления резервной копии', error);
 
       this.notification.error(
-        error instanceof Error
-          ? error.message
-          : 'Не удалось восстановить резервную копию'
+        error instanceof Error ? error.message : 'Не удалось восстановить резервную копию'
       );
+
+      this.restoreConfirmationOpen.set(false);
+      this.backupPreviewOpen.set(true);
+
     } finally {
       this.restoreInProgress.set(false);
     }
+  }
+
+  requestRestore() {
+    const plan = this.restorePlan();
+    if (!plan || plan.documents.length === 0 || this.restoreInProgress()) return;
+
+    this.restoreConfirmationOpen.set(true);
+  }
+
+  cancelRestore() {
+    this.restoreConfirmationOpen.set(false);
+  }
+
+  onBackupSheetClosed() {
+    if (this.restoreConfirmationOpen()) {
+      this.restoreConfirmationOpen.set(false);
+      return;
+    }
+
+    this.clearBackupPreview();
   }
 }

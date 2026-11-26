@@ -8,20 +8,28 @@
             (click)="$event.stopPropagation()"
             (keydown)="onDialogKeydown($event)"
         >
-            <div class="bottom-sheet-drag-area"
-                (pointerdown)="onDragStart($event)"
-                (pointermove)="onDragMove($event)"
-                (pointerup)="onDragEnd()"
-                (pointercancel)="onDragCancel()"
-            >
-                <div class="bottom-sheet-handle"></div>
+            <div class="bottom-sheet-drag-area">
+                <div class="bottom-sheet-handle"
+                    (pointerdown)="onDragStart($event)"
+                    (pointermove)="onDragMove($event)"
+                    (pointerup)="onDragEnd($event)"
+                    (pointercancel)="onDragCancel($event)"
+                ></div>
 
                 <header class="bottom-sheet-header">
                     <h2>{{title()}}</h2>
     
                     <div class="bottom-sheet-header-actions">
-                        <button type="button" (click)="closed.emit()">Отмена</button>
-                        <button type="button" (click)="applied.emit()">Применить</button>
+                        <button type="button"
+                            [disabled]="closeDisabled()"
+                            (click)="closed.emit()">
+                            {{closeLabel()}}
+                        </button>
+                        <button type="button"
+                            [disabled]="applyDisabled()"
+                            (click)="applied.emit()">
+                            {{applyLabel()}}
+                        </button>
                     </div>
                 </header>
             </div>

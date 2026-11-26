@@ -4,8 +4,8 @@
         <button type="button" [disabled]="creating()" (click)="createDocument()">
             {{creating() ? 'Создание...' : 'Создать документ'}}
         </button>
-        <label>
-            Импорт документа
+        <label class="button import">
+            <span>Импорт</span>
             <input type="file"
                 accept=".reprice,.json,application/json"
                 [disabled]="importing()"

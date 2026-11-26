@@ -6,6 +6,15 @@
 }
 
 .bottom-sheet-drag-area {
+    display: grid;
+    place-items: center;
+    padding-block: 12px;
+}
+
+.bottom-sheet-handle {
+    inline-size: 40px;
+    block-size: 6px;
+    background-color: black;
     touch-action: none;
     user-select: none;
     cursor: grab;

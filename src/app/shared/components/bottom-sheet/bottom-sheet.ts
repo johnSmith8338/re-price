@@ -13,6 +13,10 @@ export class BottomSheet {
 
   readonly visible = input(false);
   readonly title = input.required<string>();
+  readonly closeLabel = input('Отмена');
+  readonly applyLabel = input('Применить');
+  readonly closeDisabled = input(false);
+  readonly applyDisabled = input(false);
 
   readonly closed = output();
   readonly applied = output();
@@ -154,13 +158,19 @@ export class BottomSheet {
     this.dragOffset.set(Math.max(0, distance));
   }
 
-  onDragEnd() {
+  onDragEnd(event: PointerEvent) {
     if (!this.isDragging) return;
 
     this.isDragging = false;
 
+    const target = event.currentTarget as HTMLElement;
+    if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+
     const dialog = this.dialog()?.nativeElement;
-    if (!dialog) return;
+    if (!dialog) {
+      this.dragOffset.set(0);
+      return;
+    }
 
     const closeThreshold = dialog.offsetHeight * 0.25;
 
@@ -172,8 +182,12 @@ export class BottomSheet {
     }
   }
 
-  onDragCancel() {
+  onDragCancel(event: PointerEvent) {
     this.isDragging = false;
+
+    const target = event.currentTarget as HTMLElement;
+    if (target.hasPointerCapture(event.pointerId)) target.releasePointerCapture(event.pointerId);
+
     this.dragOffset.set(0);
   }
 }

@@ -71,65 +71,85 @@
                 <h3>Восстановить резервную копию</h3>
                 <p>Выбрать ранее сохранённый файл и проверить его содержимое</p>
             </div>
-            <label >
-                <span>{{backupReadInProgress()?'Чтение...':'Выбрать файл'}}</span>
+            <label class="button import">
+                <span>{{backupReadInProgress()?'Чтение...':'Импорт'}}</span>
                 <input type="file"
                     accept=".reprice-backup,.json,application/json"
-                    [disabled]="backupReadInProgress()"
+                    [disabled]="backupReadInProgress() || restoreInProgress()"
                     (change)="onBackupFileSelected($event)"
                 />
             </label>
         </div>
 
-        @if (backupPreview(); as backup) {
-            <div class="backup-preview">
-                <h3>Резервная копия проверена</h3>
-                <p>Дата создания: {{backup.createdAt}}</p>
-
-                @if (backupPreviewSummary(); as summary) {
-                    <p>Всего документов: {{summary.total}}</p>
-                    <p>Черновиков: {{summary.drafts}}</p>
-                    <p>Завершённых: {{summary.completed}}</p>
-                    <p>Всего товаров: {{summary.products}}</p>
-                }
-
-                <button type="button" (click)="clearBackupPreview()">Очистить</button>
-            </div>
-        }
-
-        @if (restorePlan();as plan) {
-            <div>
-                <h4>Результат восстановления</h4>
-                <p>Документов в резервной копии: {{plan.totalCount}}</p>
-                <p>Новых документов: {{plan.newCount}}</p>
-                <p>Совпадений по id: {{plan.conflictCount}}</p>
-                <p>Будет пропущено: {{plan.skippedCount}}</p>
-                <p>Будет заменено: {{plan.replacedCount}}</p>
-                <p>Будет создано копий: {{plan.copiedCount}}</p>
-            </div>
-        }
-
-        <div class="settings-item">
-            <div>
-                <h3>Способ восстановления</h3>
-                <p>Выбирете, как поступить с существующими документами</p>
-            </div>
-            <select 
-                [value]="restoreStrategy()"
-                (change)="onRestoreStrategyChange($event)"
-            >
-                <option value="skip-existing">Пропустить существующие</option>
-                <option value="replace-existing">Заменить существующие</option>
-                <option value="copy-all">Импортировать как копии</option>
-            </select>
-        </div>
-
-        <button type="button"
-            [disabled]="restoreInProgress()"
-            (click)="restoreBackup()"
+        <app-bottom-sheet
+            [visible]="backupPreviewOpen()"
+            [title]="restoreConfirmationOpen() ? 'Подтверждение восстановления' : 'Предпросмотр резервной копии'"
+            [closeLabel]="restoreConfirmationOpen() ? 'Назад' : 'Отмена'"
+            [applyLabel]="restoreConfirmationOpen() ? 'Подтвердить' : 'Восстановить'"
+            [applyDisabled]="restoreInProgress() || !restorePlan()?.documents?.length"
+            [closeDisabled]="restoreInProgress()"
+            (closed)="onBackupSheetClosed()"
+            (applied)="restoreConfirmationOpen() ? restoreBackup() : requestRestore()"
         >
-            {{restoreInProgress() ? 'Восстановление...' : 'Восстановить'}}
-        </button>
+            @if (backupPreview(); as backup) {
+                @if (restoreConfirmationOpen()) {
+                    <div class="restore-confirmation">
+                        <h3 id="restore-dialog-title">Восстановить резервную копию?</h3>
+                        <p id="restore-dialog-description">Текущие документы будут обработаны согласно выбранной стратегии. Это действие изменит данные приложения.</p>
+                        @if (restorePlan();as plan) {
+                            <div>
+                                <p>Всего документов: {{plan.totalCount}}</p>
+                                <p>Новых: {{plan.newCount}}</p>
+                                <p>Заменено: {{plan.replacedCount}}</p>
+                                <p>Пропущено: {{plan.skippedCount}}</p>
+                                <p>Копий: {{plan.copiedCount}}</p>
+                            </div>
+                        }
+                        @if (restoreInProgress()) {
+                            <p>Восстановление...</p>
+                        }
+                    </div>
+                }@else {
+                    <div class="backup-preview">
+                        <h3>Резервная копия проверена</h3>
+                        <p>Дата создания: {{backup.createdAt}}</p>
+        
+                        @if (backupPreviewSummary(); as summary) {
+                            <p>Всего документов: {{summary.total}}</p>
+                            <p>Черновиков: {{summary.drafts}}</p>
+                            <p>Завершённых: {{summary.completed}}</p>
+                            <p>Всего товаров: {{summary.products}}</p>
+                        }
+        
+                        @if (restorePlan();as plan) {
+                            <div>
+                                <h4>Способ восстановления</h4>
+                                <select 
+                                    [value]="restoreStrategy()"
+                                    (change)="onRestoreStrategyChange($event)"
+                                >
+                                    <option value="skip-existing">Пропустить существующие</option>
+                                    <option value="replace-existing">Заменить существующие</option>
+                                    <option value="copy-all">Импортировать как копии</option>
+                                </select>
+                            </div>
+                            <div>
+                                <h4>Результат восстановления</h4>
+                                <p>Документов в резервной копии: {{plan.totalCount}}</p>
+                                <p>Новых документов: {{plan.newCount}}</p>
+                                <p>Совпадений по id: {{plan.conflictCount}}</p>
+                                <p>Будет пропущено: {{plan.skippedCount}}</p>
+                                <p>Будет заменено: {{plan.replacedCount}}</p>
+                                <p>Будет создано копий: {{plan.copiedCount}}</p>
+                            </div>
+                            @if (plan.documents.length===0) {
+                                <p>Нет документов для восстановления с выбранной стратегией</p>
+                            }
+                        }
+                    </div>
+                }
+            }
+        </app-bottom-sheet>
     </section>
 
     <section class="settings-section">
